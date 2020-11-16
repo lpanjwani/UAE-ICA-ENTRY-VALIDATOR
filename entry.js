@@ -1,4 +1,3 @@
-const os = require('os');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const config = require('./config');
@@ -8,94 +7,104 @@ const SendSMS = require('./helpers/twilio');
 puppeteer.use(StealthPlugin());
 
 const initScrapping = () => {
-	puppeteer
-		.launch({
-			headless: true,
-			chromeWebSecurity: false,
-			args: ['--no-sandbox', '--disable-web-security', '--disable-features=site-per-process']
-		})
-		.then(async browser => {
-			console.log('Browser Initialized');
-			await ICA_WEBPAGE(browser);
-		});
+	try {
+		puppeteer
+			.launch({
+				headless: true,
+				chromeWebSecurity: false,
+				args: [
+					'--no-sandbox',
+					'--disable-web-security',
+					'--disable-features=site-per-process'
+				]
+			})
+			.then(async browser => {
+				console.log('Browser Initialized');
+				await ICA_WEBPAGE(browser);
+				await browser.close();
+				console.log('Browser Closed');
+			});
+	} catch (err) {
+		console.log('Puppeteer Error');
+		console.error(err);
+	}
 };
 
 const ICA_WEBPAGE = async browser => {
-	const page = await browser.newPage();
+	try {
+		const page = await browser.newPage();
 
-	const url =
-		'https://smartservices.ica.gov.ae/echannels/web/client/guest/index.html#/residents-entry-confirmation';
+		const url =
+			'https://smartservices.ica.gov.ae/echannels/web/client/guest/index.html#/residents-entry-confirmation';
 
-	await page.goto(url);
+		await page.goto(url);
 
-	console.log('Website Loaded');
+		console.log('Website Loaded');
 
-	await InputField(page, 'input[name="identityNumber"]', config.EIDNumber);
+		await InputField(page, 'input[name="identityNumber"]', config.EIDNumber);
 
-	await InputField(page, 'input[name="passportNo"]', config.PassportNumber);
+		await InputField(page, 'input[name="passportNo"]', config.PassportNumber);
 
-	await InputField(page, '[select-datasource="passportTypes"] input', '1');
+		await InputField(page, '[select-datasource="passportTypes"] input', '1');
 
-	await InputField(page, '[select-datasource="nationalities"] input', '205');
+		await InputField(page, '[select-datasource="nationalities"] input', '205');
 
-	console.log('Field Data Entered');
+		console.log('Field Data Entered');
 
-	await reCaptcha(page);
+		await reCaptcha(page);
 
-	console.log('reCaptcha Solved');
+		console.log('reCaptcha Solved');
 
-	await page.$eval('button[ng-click="validateData()"]', elem => elem.click());
+		await page.$eval('button[ng-click="validateData()"]', elem => elem.click());
 
-	console.log('Button Clicked');
+		console.log('Button Clicked');
 
-	const finalResponse = await page.waitForResponse(
-		'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check',
-		{ timeout: 0 }
-	);
+		const finalResponse = await page.waitForResponse(
+			'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check',
+			{ timeout: 0 }
+		);
 
-	console.log('Response Received');
+		console.log('Response Received');
 
-	const response = await finalResponse.json();
+		const response = await finalResponse.json();
 
-	console.log('Response Parsed');
+		console.log('Response Parsed');
 
-	if (response.isSuccess) {
-		if (response.data.isAuto) {
-			console.warn('Entry Approved!');
+		if (response.isSuccess) {
+			if (response.data.isAuto) {
+				console.warn('Entry Approved!');
 
-			await page.screenshot({
-				// path: `${os.homedir()}\\Desktop\\success.png`,
-				// path: `C:\\Users\\LaveshPanjwani\\Desktop\\success.png`,
-				path: `approved.png`,
-				fullPage: true
-			});
+				await page.screenshot({
+					// path: `${os.homedir()}\\Desktop\\success.png`,
+					// path: `C:\\Users\\LaveshPanjwani\\Desktop\\success.png`,
+					path: `approved.png`,
+					fullPage: true
+				});
 
-			SendSMS({ success: true });
+				SendSMS({ success: true });
+			} else {
+				console.warn(`Entry Denied (${response.data.code})`);
 
-			await browser.close();
+				await page.screenshot({
+					// path: `${os.homedir()}\\Documents\\failure.png`,
+					// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
+					path: `denied.png`,
+					fullPage: true
+				});
+			}
 		} else {
-			console.warn('Entry Denied!');
+			console.error('Request Failure!');
 
 			await page.screenshot({
 				// path: `${os.homedir()}\\Documents\\failure.png`,
 				// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
-				path: `denied.png`,
+				path: `failure.png`,
 				fullPage: true
 			});
-
-			await browser.close();
 		}
-	} else {
-		console.error('Request Failure!');
-
-		await page.screenshot({
-			// path: `${os.homedir()}\\Documents\\failure.png`,
-			// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
-			path: `failure.png`,
-			fullPage: true
-		});
-
-		await browser.close();
+	} catch (err) {
+		console.error('Browser Error!');
+		console.error(err);
 	}
 };
 
