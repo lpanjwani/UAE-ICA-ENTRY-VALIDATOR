@@ -3,6 +3,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const config = require('./config');
 const reCaptcha = require('./helpers/reCaptcha');
 const SendSMS = require('./helpers/twilio');
+const TeamsNotify = require('./helpers/teams');
 
 puppeteer.use(StealthPlugin());
 
@@ -81,7 +82,18 @@ const ICA_WEBPAGE = async browser => {
 					fullPage: true
 				});
 
-				SendSMS({ success: true });
+				SendSMS({
+					success: true,
+					message: 'Approval Successfully Received (Green) - GTG',
+					color: '#008000'
+				});
+
+				TeamsNotify({
+					success: true,
+					message: 'Approval Successfully Received (Green) - GTG',
+					color: '#008000',
+					code: response.data.code
+				});
 			} else {
 				console.warn(`Entry Denied (${response.data.code})`);
 
@@ -90,6 +102,13 @@ const ICA_WEBPAGE = async browser => {
 					// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
 					path: `denied.png`,
 					fullPage: true
+				});
+
+				TeamsNotify({
+					success: false,
+					message: 'STOP - Approval Failed',
+					color: '#FF0000',
+					code: response.data.code
 				});
 			}
 		} else {

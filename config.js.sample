@@ -4,4 +4,6 @@ module.exports = {
 	EIDNumber: "",
 	PassportNumber: "",
 	PhoneNumber: "",
+	SuccessTeamsURL: "",
+	FailureTeamsURL: ""
 };

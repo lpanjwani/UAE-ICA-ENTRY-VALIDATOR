@@ -1,31 +1,26 @@
-require("dotenv").config();
+require('dotenv').config();
 
-const twilio = require("twilio");
-const client = new twilio(
-	process.env.TWILIO_ACCOUNT_SID,
-	process.env.TWILIO_ACCOUNT_SECRET
-);
-const config = require("../config");
+const twilio = require('twilio');
+const client = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_ACCOUNT_SECRET);
+const config = require('../config');
 
 let MESSAGES_SENT = false;
 
-const SendSMS = ({ success }) => {
+const SendSMS = ({ success, message }) => {
 	if (MESSAGES_SENT) return false;
 
 	client.messages
 		.create({
-			body: success
-				? "Approval Successfully Received (Green) - GTG"
-				: "Approval Failed (Red) - STOP",
+			body: message,
 			to: config.PhoneNumber,
-			from: process.env.TWILIO_PHONE_NUMBER,
+			from: process.env.TWILIO_PHONE_NUMBER
 		})
-		.then((message) => {
-			console.warn("Sent Message ID" + message.sid);
+		.then(sms => {
+			console.warn('Sent Message ID' + sms.sid);
 			MESSAGES_SENT = true;
 		})
-		.catch((err) => {
-			console.error("SMS Sending Failed");
+		.catch(err => {
+			console.error('SMS Sending Failed');
 			console.error(err);
 		});
 };
