@@ -1,6 +1,6 @@
+const config = require('./config');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const config = require('./config');
 const reCaptcha = require('./helpers/reCaptcha');
 const SendSMS = require('./helpers/twilio');
 const TeamsNotify = require('./helpers/teams');
@@ -8,127 +8,116 @@ const TeamsNotify = require('./helpers/teams');
 puppeteer.use(StealthPlugin());
 
 const initScrapping = () => {
-	try {
-		puppeteer
-			.launch({
-				headless: true,
-				chromeWebSecurity: false,
-				args: [
-					'--no-sandbox',
-					'--disable-web-security',
-					'--disable-features=site-per-process'
-				]
-			})
-			.then(async browser => {
-				console.log('Browser Initialized');
-				await ICA_WEBPAGE(browser);
-				await browser.close();
-				console.log('Browser Closed');
+	puppeteer
+		.launch({
+			headless: true,
+			chromeWebSecurity: false,
+			args: ['--no-sandbox', '--disable-web-security', '--disable-features=site-per-process']
+		})
+		.then(async browser => {
+			console.log('Browser Initialized');
+			await ICA_WEBPAGE(browser);
+			await browser.close();
+			console.log('Browser Closed');
+		})
+		.catch(err => {
+			console.error(err);
+
+			TeamsNotify({
+				isError: true,
+				message: 'Puppeteer Error Occurred',
+				color: '#FF0000',
+				code: err.message
 			});
-	} catch (err) {
-		console.log('Puppeteer Error');
-		console.error(err);
-		TeamsNotify({
-			isError: true,
-			message: 'Puppeteer Error Occurred',
-			color: '#FF0000',
-			code: err.message
+
+			process.exit(2);
 		});
-		process.exit(2);
-	}
 };
 
 const ICA_WEBPAGE = async browser => {
-	try {
-		const page = await browser.newPage();
+	const page = await browser.newPage();
 
-		await page.setCacheEnabled(false);
+	await page.setCacheEnabled(false);
 
-		const url = 'https://uaeentry.ica.gov.ae';
+	const url = 'https://uaeentry.ica.gov.ae';
 
-		await page.goto(url);
+	await page.goto(url);
 
-		console.log('Website Loaded');
+	console.log('Website Loaded');
 
-		await InputField(page, 'input[name="identityNumber"]', config.EIDNumber);
+	await InputField(page, 'input[name="identityNumber"]', config.EIDNumber);
 
-		await InputField(page, 'input[name="passportNo"]', config.PassportNumber);
+	await InputField(page, 'input[name="passportNo"]', config.PassportNumber);
 
-		await InputField(page, '[select-datasource="passportTypes"] input', '1');
+	await InputField(page, '[select-datasource="passportTypes"] input', '1');
 
-		await InputField(page, '[select-datasource="nationalities"] input', '205');
+	await InputField(page, '[select-datasource="nationalities"] input', '205');
 
-		console.log('Field Data Entered');
+	console.log('Field Data Entered');
 
-		await reCaptcha(page);
+	await reCaptcha(page);
 
-		console.log('reCaptcha Solved');
+	console.log('reCaptcha Solved');
 
-		await page.$eval('button[ng-click="validateData()"]', elem => elem.click());
+	await page.$eval('button[ng-click="validateData()"]', elem => elem.click());
 
-		console.log('Button Clicked');
+	console.log('Button Clicked');
 
-		const finalResponse = await page.waitForResponse(
-			'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check'
-		);
-
-		console.log('Response Received');
-
-		const response = await finalResponse.json();
-
-		console.log('Response Parsed');
-
-		if (response.isSuccess) {
-			if (response.data.isAuto) {
-				console.warn('Entry Approved!');
-
-				await page.screenshot({
-					path: `approved.png`,
-					fullPage: true
-				});
-
-				await SendSMS({
-					success: true,
-					message: 'Approval Successfully Received (Green) - GTG',
-					color: '#008000'
-				});
-
-				await TeamsNotify({
-					isSuccess: true,
-					message: 'Approval Successfully Received (Green) - GTG',
-					color: '#008000',
-					code: response.data.code
-				});
-			} else {
-				console.warn(`Entry Denied (${response.data.code})`);
-
-				await page.screenshot({
-					path: `denied.png`,
-					fullPage: true
-				});
-
-				await TeamsNotify({
-					isSuccess: false,
-					message: 'STOP - Approval Failed',
-					color: '#FF0000',
-					code: response.data.code
-				});
-			}
-
-			await page.close();
-		} else {
-			throw new Error('Request Failure');
+	const finalResponse = await page.waitForResponse(
+		'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check',
+		{
+			timeout: 60000
 		}
-	} catch (err) {
-		console.error('Browser Error!');
-		console.error(err);
-		await TeamsNotify({
-			isError: true,
-			message: 'Browser Error Occurred',
-			color: '#FF0000',
-			code: err.message
-		});
-		process.exit(2);
+	);
+
+	console.log('Response Received');
+
+	const response = await finalResponse.json();
+
+	console.log('Response Parsed');
+
+	if (response.isSuccess) {
+		if (response.data.isAuto) {
+			console.warn('Entry Approved!');
+
+			await page.screenshot({
+				path: `approved.png`,
+				fullPage: true
+			});
+
+			await SendSMS({
+				success: true,
+				message: 'Approval Successfully Received (Green) - GTG',
+				color: '#008000'
+			});
+
+			await TeamsNotify({
+				isSuccess: true,
+				message: 'Approval Successfully Received (Green) - GTG',
+				color: '#008000',
+				code: response.data.code
+			});
+		} else {
+			console.warn(`Entry Denied (${response.data.code})`);
+
+			await page.screenshot({
+				path: `denied.png`,
+				fullPage: true
+			});
+
+			await TeamsNotify({
+				isSuccess: false,
+				message: 'STOP - Approval Failed',
+				color: '#FF0000',
+				code: response.data.code
+			});
+		}
+
+		await page.close();
+	} else {
+		await page.close();
+
+		throw new Error('Request Failure');
 	}
 };
 
