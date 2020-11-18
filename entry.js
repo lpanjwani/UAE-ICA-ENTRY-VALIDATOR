@@ -28,6 +28,13 @@ const initScrapping = () => {
 	} catch (err) {
 		console.log('Puppeteer Error');
 		console.error(err);
+		TeamsNotify({
+			isError: true,
+			message: 'Puppeteer Error Occurred',
+			color: '#FF0000',
+			code: err.message
+		});
+		process.exit(2);
 	}
 };
 
@@ -35,8 +42,9 @@ const ICA_WEBPAGE = async browser => {
 	try {
 		const page = await browser.newPage();
 
-		const url =
-			'https://smartservices.ica.gov.ae/echannels/web/client/guest/index.html#/residents-entry-confirmation';
+		await page.setCacheEnabled(false);
+
+		const url = 'https://uaeentry.ica.gov.ae';
 
 		await page.goto(url);
 
@@ -61,8 +69,7 @@ const ICA_WEBPAGE = async browser => {
 		console.log('Button Clicked');
 
 		const finalResponse = await page.waitForResponse(
-			'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check',
-			{ timeout: 0 }
+			'https://smartservices.ica.gov.ae/echannels/api/api/guest/draft/resident/entryPermission/check'
 		);
 
 		console.log('Response Received');
@@ -76,20 +83,18 @@ const ICA_WEBPAGE = async browser => {
 				console.warn('Entry Approved!');
 
 				await page.screenshot({
-					// path: `${os.homedir()}\\Desktop\\success.png`,
-					// path: `C:\\Users\\LaveshPanjwani\\Desktop\\success.png`,
 					path: `approved.png`,
 					fullPage: true
 				});
 
-				SendSMS({
+				await SendSMS({
 					success: true,
 					message: 'Approval Successfully Received (Green) - GTG',
 					color: '#008000'
 				});
 
-				TeamsNotify({
-					success: true,
+				await TeamsNotify({
+					isSuccess: true,
 					message: 'Approval Successfully Received (Green) - GTG',
 					color: '#008000',
 					code: response.data.code
@@ -98,32 +103,32 @@ const ICA_WEBPAGE = async browser => {
 				console.warn(`Entry Denied (${response.data.code})`);
 
 				await page.screenshot({
-					// path: `${os.homedir()}\\Documents\\failure.png`,
-					// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
 					path: `denied.png`,
 					fullPage: true
 				});
 
-				TeamsNotify({
-					success: false,
+				await TeamsNotify({
+					isSuccess: false,
 					message: 'STOP - Approval Failed',
 					color: '#FF0000',
 					code: response.data.code
 				});
 			}
-		} else {
-			console.error('Request Failure!');
 
-			await page.screenshot({
-				// path: `${os.homedir()}\\Documents\\failure.png`,
-				// path: `C:\\Users\\LaveshPanjwani\\Documents\\failure.png`,
-				path: `failure.png`,
-				fullPage: true
-			});
+			await page.close();
+		} else {
+			throw new Error('Request Failure');
 		}
 	} catch (err) {
 		console.error('Browser Error!');
 		console.error(err);
+		await TeamsNotify({
+			isError: true,
+			message: 'Browser Error Occurred',
+			color: '#FF0000',
+			code: err.message
+		});
+		process.exit(2);
 	}
 };
 

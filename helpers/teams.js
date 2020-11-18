@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../config');
 
-const TeamsMessage = async ({ success, message, color, code }) => {
+const TeamsMessage = async ({ isSuccess, isError, message, color, code }) => {
 	const request = {
 		'@type': 'MessageCard',
 		'@context': 'http://schema.org/extensions',
@@ -34,9 +34,12 @@ const TeamsMessage = async ({ success, message, color, code }) => {
 		]
 	};
 
-	const url = success ? config.SuccessTeamsURL : config.FailureTeamsURL;
+	const baseURL = isSuccess ? config.SuccessTeamsURL : config.FailureTeamsURL;
+	const errorURL = config.ErrorTrackingTeamsURL;
 
-	const response = await axios.post(url, request, {
+	const conditionalURL = isError ? errorURL : baseURL;
+
+	const response = await axios.post(conditionalURL, request, {
 		headers: {
 			'Content-Type': 'application/json'
 		}
