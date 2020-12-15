@@ -1,9 +1,9 @@
-const cron = require("node-cron");
-const initScrapping = require("./entry");
+const cron = require('node-cron');
+const initScrapping = require('./entry');
 
 initScrapping();
 
-cron.schedule("*/5 * * * *", () => {
-	console.log("Running Scrapping");
+cron.schedule('*/10 * * * *', () => {
+	console.log('Running Scrapping');
 	initScrapping();
 });

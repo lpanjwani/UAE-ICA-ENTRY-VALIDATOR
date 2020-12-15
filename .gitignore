@@ -12,3 +12,6 @@ success.png
 denied.png
 failure.png
 approved.png
+
+# Visual Studio Code
+.vscode/snipsnap.code-snippets

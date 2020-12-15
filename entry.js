@@ -29,8 +29,6 @@ const initScrapping = () => {
 				color: '#FF0000',
 				code: err.message
 			});
-
-			process.exit(2);
 		});
 };
 
