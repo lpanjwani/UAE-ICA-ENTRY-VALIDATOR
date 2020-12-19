@@ -1,0 +1,16 @@
+# Version Control
+.git 
+
+# Node Dependencies
+node_modules
+/dist
+
+# Screenshots
+screenshots
+success.png
+denied.png
+failure.png
+approved.png
+
+# Visual Studio Code
+.vscode/snipsnap.code-snippets
